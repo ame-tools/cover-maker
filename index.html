@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カバー画像メーカー v3.3 (iPhone対応)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f3efe8;--card:#fffdf9;--ink:#4a443b;--sub:#8a7d6a;
+    --line:#e2d9cb;--accent:#6f6659;--warn:#8a4a35;--ok:#5d6e46}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;
+    display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;
+    justify-content:center;padding:20px;min-height:100vh}
+  .panel{width:340px;max-width:100%;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;padding:20px}
+  h1{font-size:19px;margin:0 0 2px;letter-spacing:1px}
+  .sub{font-size:12px;color:var(--sub);margin:0 0 16px}
+  label.big{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  label.small{display:block;font-size:11px;color:var(--accent);margin:8px 0 2px}
+  input[type=file]{font-size:12px;width:100%}
+  input[type=range]{accent-color:var(--sub);width:100%}
+  textarea{width:100%;font-size:16px;padding:10px;border:1px solid #d7cdbd;
+    border-radius:6px;resize:vertical;font-family:inherit}
+  textarea:focus{outline:2px solid var(--sub)}
+  select{width:100%;padding:8px;font-size:13px;border:1px solid #d7cdbd;
+    border-radius:6px;background:#fff;color:var(--ink);font-family:inherit}
+  .row2{display:flex;gap:8px}
+  .row2>div{flex:1}
+  .warn{display:none;margin-top:8px;padding:8px 10px;font-size:12px;
+    background:#f7e8e3;border:1px solid #dcb9ac;border-radius:6px;color:var(--warn)}
+  .shrinkNote{display:none;margin-top:8px;padding:8px 10px;font-size:12px;
+    background:#eef2e8;border:1px solid #c3cfae;border-radius:6px;color:var(--ok)}
+  .info{font-size:11px;color:var(--sub);margin-top:8px}
+  .export{margin-top:16px;width:100%;padding:12px 0;font-size:15px;font-weight:600;
+    color:var(--card);background:var(--accent);border:none;border-radius:8px;cursor:pointer}
+  .export:disabled{opacity:.45;cursor:default}
+  .toggle{margin-top:10px;width:100%;padding:8px 0;font-size:12px;background:none;
+    border:1px dashed #c9beae;border-radius:8px;color:var(--sub);cursor:pointer}
+  .group{display:none;margin-top:10px;padding:12px;background:#f8f4ec;border-radius:8px}
+  .group.open,.group.always{display:block}
+  .btn{margin-top:10px;width:100%;padding:9px 0;font-size:12px;background:var(--card);
+    border:1px solid #c9beae;border-radius:6px;color:var(--accent);cursor:pointer}
+  .btn.primary{background:#efe9de;font-weight:600}
+  .saved{font-size:11px;color:var(--ok);height:14px;margin-top:6px}
+
+  /* 既定とのズレ表示 */
+  .drift{margin-top:12px;padding:9px 10px;font-size:12px;border-radius:6px}
+  .drift.ok{background:#eef2e8;border:1px solid #c3cfae;color:var(--ok)}
+  .drift.ng{background:#f7f0e3;border:1px solid #ddc9a3;color:#8a6a35}
+  .drift ul{margin:6px 0 0;padding-left:18px}
+  .drift li{margin:2px 0}
+
+  .preview{text-align:center}
+  canvas{width:300px;height:auto;border-radius:10px;border:1px solid var(--line);
+    background:#fff;display:block}
+  .plabel{font-size:11px;color:var(--sub);margin-top:8px}
+
+  /* 履歴 */
+  .history{width:300px;margin-top:18px;text-align:left}
+  .history h2{font-size:13px;margin:0 0 4px}
+  .history .hsub{font-size:11px;color:var(--sub);margin:0 0 8px}
+  .hgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .hitem{border:1px solid var(--line);border-radius:6px;overflow:hidden;
+    cursor:pointer;background:#fff;padding:0;position:relative}
+  .hitem img{width:100%;display:block}
+  .hitem .ht{font-size:9px;color:var(--sub);padding:2px 3px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;display:block}
+  .hitem:hover{outline:2px solid var(--sub)}
+  .hclear{margin-top:8px;font-size:11px;background:none;border:none;
+    color:var(--sub);cursor:pointer;text-decoration:underline;padding:0}
+  .hempty{font-size:11px;color:var(--sub)}
+
+  /* iPhone向け: プレビューを最上部に固定し、スクロールしても常に見える */
+  @media (max-width: 720px){
+    body{padding:12px;gap:16px}
+    .panel{width:100%;order:1}
+    .history{width:100%;order:2}
+    .preview{order:0;width:100%;
+      position:sticky;top:0;z-index:20;
+      background:var(--bg);padding:8px 0 10px;
+      border-bottom:1px solid var(--line)}
+    canvas{width:min(190px,46vw);margin:0 auto}
+    .plabel{margin-top:4px}
+    .hgrid{grid-template-columns:repeat(4,1fr)}
+    input[type=range]{height:28px} /* 指で掴みやすく */
+  }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>カバー画像メーカー <span style="font-size:12px;color:var(--sub)">v3.3</span></h1>
+  <p class="sub">既定デザイン固定 — 差し替えるのは写真と文字だけ</p>
+
+  <label class="big">① 写真</label>
+  <input type="file" id="file" accept="image/*">
+
+  <div class="group always" id="photoGroup">
+    <div class="info" id="photoHint" style="margin:0 0 6px">※写真を選ぶと調整できます</div>
+    <label class="small">ズーム <span id="zoomV"></span></label>
+    <input type="range" id="zoom" min="1" max="2" step="0.01">
+    <label class="small">横位置</label>
+    <input type="range" id="offsetX" min="-300" max="300" step="1">
+    <label class="small">縦位置</label>
+    <input type="range" id="offsetY" min="-400" max="400" step="1">
+  </div>
+
+  <label class="big">② テロップ(改行はそのまま反映)</label>
+  <textarea id="text" rows="3">絶対NGな
+旦那へのアプローチ</textarea>
+  <div class="warn" id="warn"></div>
+  <div class="shrinkNote" id="shrinkNote"></div>
+  <div class="info" id="info"></div>
+
+  <label class="big">③ 見た目</label>
+  <div class="row2">
+    <div>
+      <label class="small">フォント</label>
+      <select id="fontKey">
+        <option value="mincho">明朝(いつもの)</option>
+        <option value="gothic">ゴシック極太</option>
+        <option value="maru">丸ゴシック</option>
+      </select>
+    </div>
+    <div>
+      <label class="small">帯スタイル</label>
+      <select id="bandStyle">
+        <option value="white">白帯</option>
+        <option value="black">黒帯</option>
+        <option value="none">帯なし</option>
+      </select>
+    </div>
+  </div>
+  <label class="small">文字の影の強さ <span id="shadowV"></span></label>
+  <input type="range" id="shadow" min="0" max="1" step="0.01">
+
+  <div class="drift ok" id="drift">既定どおり ✓</div>
+
+  <button class="export" id="export" disabled>PNG書き出し(1080×1920)</button>
+  <button class="toggle" id="tuneToggle">▼ 微調整(通常は触らない)</button>
+
+  <div class="group" id="tune">
+    <label class="small">文字サイズ上限 <span id="fontSizeV"></span>px(はみ出す行は自動縮小)</label>
+    <input type="range" id="fontSize" min="70" max="120" step="1">
+    <label class="small">帯の上辺Y <span id="bandTopV"></span></label>
+    <input type="range" id="bandTop" min="900" max="1400" step="5">
+    <label class="small">帯の横幅 <span id="bandWidthV"></span>%</label>
+    <input type="range" id="bandWidth" min="60" max="100" step="1">
+    <label class="small">帯の余白(上下) <span id="bandPadV"></span>px</label>
+    <input type="range" id="bandPad" min="30" max="130" step="2">
+    <label class="small">帯の濃さ <span id="bandAlphaV"></span></label>
+    <input type="range" id="bandAlpha" min="0.2" max="0.85" step="0.01">
+    <label class="small">全体の淡さ <span id="overlayAlphaV"></span></label>
+    <input type="range" id="overlayAlpha" min="0" max="0.7" step="0.01">
+    <label class="small">縁取り太さ <span id="strokeWidthV"></span>px</label>
+    <input type="range" id="strokeWidth" min="0" max="10" step="0.5">
+
+    <button class="btn primary" id="saveDefault">この設定を「自分の既定」として保存</button>
+    <button class="btn" id="resetDefault">既定に戻す</button>
+    <button class="btn" id="resetBrand">初期デザイン(v1相当)に完全リセット</button>
+  </div>
+  <div class="saved" id="saved"></div>
+</div>
+
+<div class="preview">
+  <canvas id="cv" width="1080" height="1920"></canvas>
+  <div class="plabel">プレビュー(書き出しは原寸1080×1920)</div>
+</div>
+
+<div class="history">
+    <h2>書き出し履歴(最新12件)</h2>
+    <p class="hsub">タップで文字と設定を復元(写真は再選択が必要)</p>
+    <div class="hgrid" id="hgrid"></div>
+    <div class="hempty" id="hempty">まだ履歴がありません。PNG書き出しすると自動で残ります。</div>
+    <button class="hclear" id="hclear" style="display:none">履歴をすべて削除</button>
+</div>
+
+<script>
+"use strict";
+const W = 1080, H = 1920;
+
+// フォント定義(Mac標準フォント)
+const FONTS = {
+  mincho: { css: '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif', weight: "600" },
+  gothic: { css: '"Hiragino Sans","Yu Gothic Bold","Noto Sans JP",sans-serif', weight: "800" },
+  // 丸ゴはiOSに存在しないため、Webフォント(Zen Maru Gothic)を第一候補にして両OSで統一
+  maru:   { css: '"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif', weight: "700" }
+};
+
+const MIN_FONT = 72;   // 自動縮小の下限(これ未満はサムネで読めない)
+const SIDE_PAD = 70;   // 左右の安全マージン
+
+// ===== ブランド既定(v1のデザインを再現。ここは絶対に変わらない基準点) =====
+const BRAND = Object.freeze({
+  fontSize: 96, lineHeight: 1.5, bandTop: 1165,
+  bandPad: 68,        // 旧v1の上62+下74と同じ帯高さになる対称値
+  bandWidth: 100,
+  bandAlpha: 0.5, overlayAlpha: 0.42,
+  strokeWidth: 5, strokeColor: "#6f6659",
+  fontKey: "mincho", bandStyle: "white",
+  shadow: 0           // v1には影がなかったので既定は0
+});
+
+// 既定との比較・保存の対象になるデザイン項目(写真の位置は毎回違って当然なので除外)
+const DESIGN_KEYS = ["fontSize","bandTop","bandPad","bandWidth","bandAlpha",
+                     "overlayAlpha","strokeWidth","fontKey","bandStyle","shadow"];
+const KEY_LABELS = {
+  fontSize:"文字サイズ上限", bandTop:"帯の上辺Y", bandPad:"帯の余白",
+  bandWidth:"帯の横幅", bandAlpha:"帯の濃さ", overlayAlpha:"全体の淡さ",
+  strokeWidth:"縁取り", fontKey:"フォント", bandStyle:"帯スタイル", shadow:"影"
+};
+
+// ===== 状態 =====
+// 起動時: ブランド既定 → 自分の既定(保存してあれば)の順で上書き。
+// スライダーをいじっても勝手には保存しない。保存は「自分の既定として保存」ボタンのみ。
+let myDefault = null;
+try {
+  const raw = localStorage.getItem("cover-my-default");
+  if (raw) myDefault = JSON.parse(raw);
+} catch (e) { myDefault = null; }
+
+function effectiveDefault() {
+  return Object.assign({}, BRAND, myDefault || {});
+}
+
+let s = Object.assign({ zoom: 1, offsetX: 0, offsetY: 0 }, effectiveDefault());
+if (!FONTS[s.fontKey]) s.fontKey = "mincho";
+let img = null;
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+// ===== コントロール =====
+const SLIDERS = ["zoom","offsetX","offsetY","fontSize","bandTop","bandWidth","bandPad",
+                 "bandAlpha","overlayAlpha","strokeWidth","shadow"];
+const SELECTS = ["fontKey","bandStyle"];
+
+function syncControls() {
+  SLIDERS.forEach(k => { $(k).value = s[k]; });
+  SELECTS.forEach(k => { $(k).value = s[k]; });
+  $("zoomV").textContent = Number(s.zoom).toFixed(2);
+  $("fontSizeV").textContent = s.fontSize;
+  $("bandTopV").textContent = s.bandTop;
+  $("bandWidthV").textContent = s.bandWidth;
+  $("bandPadV").textContent = s.bandPad;
+  $("bandAlphaV").textContent = Number(s.bandAlpha).toFixed(2);
+  $("overlayAlphaV").textContent = Number(s.overlayAlpha).toFixed(2);
+  $("strokeWidthV").textContent = s.strokeWidth;
+  $("shadowV").textContent = Number(s.shadow).toFixed(2);
+  updateDrift();
+}
+SLIDERS.forEach(k => {
+  $(k).addEventListener("input", e => {
+    s[k] = parseFloat(e.target.value);
+    syncControls(); draw();
+  });
+});
+SELECTS.forEach(k => {
+  $(k).addEventListener("change", e => {
+    s[k] = e.target.value;
+    syncControls(); draw();
+  });
+});
+$("text").addEventListener("input", draw);
+
+$("tuneToggle").addEventListener("click", () => {
+  const open = $("tune").classList.toggle("open");
+  $("tuneToggle").textContent = open ? "▲ 微調整を閉じる" : "▼ 微調整(通常は触らない)";
+});
+
+// ===== 既定とのズレ表示(ばらつき防止の要) =====
+function fmt(k, v) {
+  if (k === "fontKey") return {mincho:"明朝",gothic:"ゴシック",maru:"丸ゴ"}[v] || v;
+  if (k === "bandStyle") return {white:"白帯",black:"黒帯",none:"帯なし"}[v] || v;
+  return v;
+}
+function updateDrift() {
+  const def = effectiveDefault();
+  const diffs = DESIGN_KEYS.filter(k => String(s[k]) !== String(def[k]));
+  const el = $("drift");
+  if (diffs.length === 0) {
+    el.className = "drift ok";
+    el.textContent = "既定どおり ✓ (このまま書き出せば毎回同じ見た目)";
+  } else {
+    el.className = "drift ng";
+    el.innerHTML = "既定からズレています:<ul>" +
+      diffs.map(k => "<li>" + KEY_LABELS[k] + ": " + fmt(k, def[k]) +
+        " → <b>" + fmt(k, s[k]) + "</b></li>").join("") +
+      "</ul>意図的な変更なら下の「自分の既定として保存」、そうでなければ「既定に戻す」。";
+  }
+}
+
+// ===== 既定の保存・リセット(明示的な操作のみ) =====
+function flash(msg) {
+  $("saved").textContent = msg;
+  setTimeout(() => { $("saved").textContent = ""; }, 2000);
+}
+$("saveDefault").addEventListener("click", () => {
+  const p = {};
+  DESIGN_KEYS.forEach(k => { p[k] = s[k]; });
+  try {
+    localStorage.setItem("cover-my-default", JSON.stringify(p));
+    myDefault = p;
+    updateDrift();
+    flash("自分の既定として保存しました(次回からこの見た目で起動)");
+  } catch (e) { flash("保存に失敗しました"); }
+});
+$("resetDefault").addEventListener("click", () => {
+  Object.assign(s, effectiveDefault());
+  syncControls(); draw();
+  flash("既定に戻しました");
+});
+$("resetBrand").addEventListener("click", () => {
+  try { localStorage.removeItem("cover-my-default"); } catch (e) {}
+  myDefault = null;
+  Object.assign(s, BRAND);
+  syncControls(); draw();
+  flash("初期デザインに完全リセットしました");
+});
+
+// ===== 写真 =====
+$("file").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const im = new Image();
+  im.onload = () => {
+    img = im;
+    s.zoom = 1; s.offsetX = 0; s.offsetY = 0;
+    $("photoHint").style.display = "none";
+    $("export").disabled = false;
+    syncControls(); draw();
+  };
+  im.src = URL.createObjectURL(f);
+});
+
+// ===== 文字サイズの自動決定 =====
+function fitFontSize(lines, fontDef) {
+  const bandW = W * s.bandWidth / 100;
+  const maxW = (s.bandStyle === "none") ? (W - SIDE_PAD)
+             : Math.min(W - SIDE_PAD, bandW - 60);
+  let fs = s.fontSize;
+  const fits = size => {
+    ctx.font = fontDef.weight + " " + size + "px " + fontDef.css;
+    return lines.every(l => ctx.measureText(l).width <= maxW);
+  };
+  while (fs > MIN_FONT && !fits(fs)) fs -= 2;
+  return { size: fs, over: !fits(fs) };
+}
+
+// ===== 描画 =====
+function draw() {
+  ctx.fillStyle = "#efe8dd";
+  ctx.fillRect(0, 0, W, H);
+
+  if (img) {
+    const scale = Math.max(W / img.width, H / img.height) * s.zoom;
+    const dw = img.width * scale, dh = img.height * scale;
+    ctx.drawImage(img, (W - dw) / 2 + s.offsetX, (H - dh) / 2 + s.offsetY, dw, dh);
+  } else {
+    ctx.fillStyle = "#c9beae";
+    ctx.font = "44px " + FONTS.mincho.css;
+    ctx.textAlign = "center";
+    ctx.fillText("写真を選択してください", W / 2, H / 2);
+  }
+
+  // 全体クリームオーバーレイ
+  ctx.fillStyle = "rgba(243,236,226," + s.overlayAlpha + ")";
+  ctx.fillRect(0, 0, W, H);
+
+  const fontDef = FONTS[s.fontKey] || FONTS.mincho;
+  const lines = $("text").value.split("\n").filter(l => l.trim().length > 0);
+  const fit = fitFontSize(lines.length ? lines : [""], fontDef);
+  const fs = fit.size;
+  const lineH = fs * s.lineHeight;
+
+  // 帯(上辺固定・下に自動拡張・横幅可変で中央配置)
+  const bandH = s.bandPad * 2 + Math.max(lines.length, 1) * lineH;
+  const bandW = W * s.bandWidth / 100;
+  const bandX = (W - bandW) / 2;
+  if (s.bandStyle === "white") {
+    ctx.fillStyle = "rgba(255,255,255," + s.bandAlpha + ")";
+    ctx.fillRect(bandX, s.bandTop, bandW, bandH);
+  } else if (s.bandStyle === "black") {
+    ctx.fillStyle = "rgba(32,29,25," + s.bandAlpha + ")";
+    ctx.fillRect(bandX, s.bandTop, bandW, bandH);
+  }
+
+  // テロップ(白・縁取り・影)
+  ctx.font = fontDef.weight + " " + fs + "px " + fontDef.css;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.lineJoin = "round";
+
+  // フォント実寸を測って、各行を行スロット内で正確に上下センタリング
+  const fm = ctx.measureText("あ永");
+  const asc  = (fm.fontBoundingBoxAscent  !== undefined) ? fm.fontBoundingBoxAscent  : fs * 0.88;
+  const desc = (fm.fontBoundingBoxDescent !== undefined) ? fm.fontBoundingBoxDescent : fs * 0.12;
+  const glyphH = asc + desc;
+
+  lines.forEach((line, i) => {
+    const slotTop = s.bandTop + s.bandPad + i * lineH;
+    const y = slotTop + (lineH - glyphH) / 2 + asc;
+
+    if (s.shadow > 0) {
+      ctx.shadowColor = "rgba(0,0,0," + (0.85 * s.shadow) + ")";
+      ctx.shadowBlur = 34 * s.shadow;
+      ctx.shadowOffsetY = 6 * s.shadow;
+    }
+    ctx.strokeStyle = s.strokeColor;
+    ctx.lineWidth = s.strokeWidth;
+    if (s.strokeWidth > 0) ctx.strokeText(line, W / 2, y);
+
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(line, W / 2, y);
+  });
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+  // 通知の出し分け
+  const shrinkNote = $("shrinkNote"), warn = $("warn");
+  if (fit.over) {
+    warn.textContent = "下限" + MIN_FONT + "pxまで縮めても入りません。この文字数はサムネで読めないので、行を分けるか文字数を減らしてください(目安:1行10文字以内)。";
+    warn.style.display = "block";
+    shrinkNote.style.display = "none";
+  } else if (fs < s.fontSize) {
+    warn.style.display = "none";
+    shrinkNote.textContent = "長い行に合わせて自動縮小中: " + s.fontSize + "px → " + fs + "px。読みやすさ優先なら改行位置の調整を推奨。";
+    shrinkNote.style.display = "block";
+  } else {
+    warn.style.display = "none";
+    shrinkNote.style.display = "none";
+  }
+
+  const bandBottom = Math.round(s.bandTop + bandH);
+  $("info").textContent = lines.length + "行 / 文字" + fs + "px / 帯: 横" + s.bandWidth +
+    "% Y" + s.bandTop + "→Y" + bandBottom + "(自動拡張)";
+}
+
+// ===== 履歴 =====
+const HISTORY_KEY = "cover-history", HISTORY_MAX = 12;
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+function saveHistory(list) {
+  // 容量オーバー時は古いものから間引いて再挑戦
+  while (true) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); return true; }
+    catch (e) {
+      if (list.length === 0) return false;
+      list.pop();
+    }
+  }
+}
+function renderHistory() {
+  const list = loadHistory();
+  const grid = $("hgrid");
+  grid.innerHTML = "";
+  $("hempty").style.display = list.length ? "none" : "block";
+  $("hclear").style.display = list.length ? "inline" : "none";
+  list.forEach((h, idx) => {
+    const b = document.createElement("button");
+    b.className = "hitem";
+    b.title = h.text.replace(/\n/g, " / ") + "\n" + h.date + "\nタップで文字と設定を復元";
+    const im = document.createElement("img");
+    im.src = h.thumb;
+    const t = document.createElement("span");
+    t.className = "ht";
+    t.textContent = h.text.split("\n")[0] || "(無題)";
+    b.appendChild(im); b.appendChild(t);
+    b.addEventListener("click", () => restoreFromHistory(idx));
+    grid.appendChild(b);
+  });
+}
+function restoreFromHistory(idx) {
+  const list = loadHistory();
+  const h = list[idx];
+  if (!h) return;
+  $("text").value = h.text;
+  DESIGN_KEYS.forEach(k => { if (h.settings[k] !== undefined) s[k] = h.settings[k]; });
+  syncControls(); draw();
+  flash("履歴から復元しました(写真は再選択してください)");
+}
+$("hclear").addEventListener("click", () => {
+  if (!confirm("書き出し履歴をすべて削除しますか?")) return;
+  try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
+  renderHistory();
+});
+
+function pushHistory() {
+  // サムネイル生成(135×240 JPEG。localStorageを圧迫しないサイズ)
+  const tc = document.createElement("canvas");
+  tc.width = 135; tc.height = 240;
+  tc.getContext("2d").drawImage(cv, 0, 0, 135, 240);
+  const thumb = tc.toDataURL("image/jpeg", 0.6);
+
+  const settings = {};
+  DESIGN_KEYS.forEach(k => { settings[k] = s[k]; });
+  const d = new Date();
+  const entry = {
+    date: d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() +
+          " " + d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"),
+    text: $("text").value,
+    settings, thumb
+  };
+  const list = loadHistory();
+  list.unshift(entry);
+  if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
+  saveHistory(list);
+  renderHistory();
+}
+
+// ===== PNG書き出し(端末で出し分け) =====
+// iPhone/iPad: 共有シートを出す → 「画像を保存」でカメラロール直行
+// Mac: 従来どおりPNGダウンロード
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (IS_IOS) $("export").textContent = "書き出して保存(共有シート)";
+
+$("export").addEventListener("click", () => {
+  const name = "カバー_" + (($("text").value.split("\n")[0] || "cover").slice(0, 12)) + ".png";
+  cv.toBlob(async blob => {
+    if (!blob) { flash("書き出しに失敗しました"); return; }
+    const file = new File([blob], name, { type: "image/png" });
+    if (IS_IOS && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        pushHistory(); // 共有完了時のみ履歴に残す
+      } catch (e) { /* キャンセル時は何もしない */ }
+      return;
+    }
+    // Mac / 共有非対応ブラウザ
+    const a = document.createElement("a");
+    a.download = name;
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    pushHistory();
+  }, "image/png");
+});
+
+// Webフォント(丸ゴ)の読み込み完了後に描き直し(初回の化け防止)
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => draw());
+}
+
+syncControls();
+draw();
+renderHistory();
+</script>
+</body>
+</html>
